@@ -21,7 +21,7 @@ Options:
         --led-multiplexing=<0..17> : Mux type: 0=direct; 1=Stripe; 2=Checkered; 3=Spiral; 4=ZStripe; 5=ZnMirrorZStripe; 6=coreman; 7=Kaler2Scan; 8=ZStripeUneven; 9=P10-128x4-Z; 10=QiangLiQ8; 11=InversedZStripe; 12=P10Outdoor1R1G1-1; 13=P10Outdoor1R1G1-2; 14=P10Outdoor1R1G1-3; 15=P10CoremanMapper; 16=P8Outdoor1R1G1; 17=FlippedStripe (Default: 0)
         --led-pixel-mapper        : Semicolon-separated list of pixel-mappers to arrange pixels.
                                     Optional params after a colon e.g. "U-mapper;Rotate:90"
-                                    Available: "Mirror", "Rotate", "U-mapper", "V-mapper". Default: ""
+                                    Available: "Mirror", "Rotate", "U-mapper", "V-mapper", "Row-mapper". Default: ""
         --led-pwm-bits=<1..11>    : PWM bits (Default: 11).
         --led-brightness=<percent>: Brightness in percent (Default: 100).
         --led-scan-mode=<0..1>    : 0 = progressive; 1 = interlaced (Default: 0).
@@ -379,6 +379,26 @@ Without parameter, it mirrors horizontally. The parameter is a single character
 
 ```
   ./demo --led-pixel-mapper="Mirror:H"
+```
+
+#### Row-mapper
+
+The 'Row-mapper' put panels in a single row, that are normally divided into multiple rows when using parallel chains.
+
+```
+6 panels, in 3 parallel chains with 2 in each chain (--led-chain=2 --led-parallel=3) normally looks like this:
+   [<][<]  }--- Parallel connector #1
+   [<][<]  }--- Parallel connector #2
+   [<][<]  }--- Parallel connector #3
+
+It will look like this, when using the Row-mapper:
+   [<][<][<][<][<][<]
+```
+
+This is useful if you are using a hat/adapter with multiple parallel chains but trying to run code that was made for a single chain.
+
+```
+  ./demo --led-pixel-mapper="Row-mapper"
 ```
 
 #### Combining Mappers
