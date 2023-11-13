@@ -25,6 +25,63 @@
 namespace rgb_matrix {
 namespace {
 
+// Put panels in a single row, that has been put in multiple rows by using parallel chains.
+// 6 panels, in 3 parallel chains with 2 in each chain (--led-chain=2 --led-parallel=3)
+// normally looks like this:
+// [<][<]
+// [<][<]
+// [<][<]
+//
+// can be arranged in one long row:
+// [<][<][<][<][<][<]
+//
+// This is useful if you are using a hat/adapter with multiple parallel chains
+// but trying to run code made for a single chain.
+class RowArrangementMapper : public PixelMapper {
+public:
+  RowArrangementMapper() : parallel_(1) {}
+
+  virtual const char *GetName() const { return "Row-mapper"; }
+
+  virtual bool SetParameters(int chain, int parallel, const char *param) {
+    if (parallel < 2) {  // technically, a chain of 1 would work, but somewhat pointless
+      fprintf(stderr, "Row-mapper: need at least --led-parallel=2 for usefullness\n");
+      return false;
+    }
+
+    chain_ = chain;
+    parallel_ = parallel;
+    return true;
+  }
+
+  virtual bool GetSizeMapping(int matrix_width, int matrix_height,
+                              int *visible_width, int *visible_height)
+    const {
+
+    *visible_height = matrix_height / parallel_;
+    *visible_width = matrix_width * parallel_;
+
+    return true;
+  }
+
+  virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
+                                  int x, int y,
+                                  int *matrix_x, int *matrix_y) const {
+
+    const int panel_height = matrix_height / parallel_;
+
+    const int y_diff = int (x / matrix_width); //round down
+
+    *matrix_x = x % matrix_width;
+    *matrix_y = (y_diff * panel_height) + y;
+
+  }
+
+private:
+  int chain_;
+  int parallel_;
+};
+
 class RotatePixelMapper : public PixelMapper {
 public:
   RotatePixelMapper() : angle_(0) {}
@@ -292,6 +349,7 @@ static MapperByName *CreateMapperMap() {
   MapperByName *result = new MapperByName();
 
   // Register all the default PixelMappers here.
+  RegisterPixelMapperInternal(result, new RowArrangementMapper());
   RegisterPixelMapperInternal(result, new RotatePixelMapper());
   RegisterPixelMapperInternal(result, new UArrangementMapper());
   RegisterPixelMapperInternal(result, new VerticalMapper());
