@@ -22,8 +22,6 @@
 
 #include <map>
 
-#include <unistd.h>               // for linux 
-
 namespace rgb_matrix {
 namespace {
 
@@ -148,7 +146,7 @@ public:
             if ( panel_angle % 90 != 0) {
               fprintf(stderr, "%s: invalid parameter value for rotation: %i\n",this->GetName(), panel_angle);
             }else{
-              panels[panel_index] = panel_angle;
+              panels_[panel_index] = panel_angle;
             }
           }
 
@@ -192,8 +190,8 @@ public:
     int panel_y = 0;
 
     //check if we should do any rotation for the current panel
-    if(panels.count(panel_nr) > 0) {
-      angle = panels.at(panel_nr);
+    if(panels_.count(panel_nr) > 0) {
+      angle = panels_.at(panel_nr);
 
       //convert from x,y on the matrix to x,y on the panel
       panel_x = (panel_x_nr == 0) ? x : x % ((panel_x_nr) * panel_cols_);
@@ -229,7 +227,148 @@ private:
   int parallel_;
   mutable int panel_cols_;
   mutable int panel_rows_;
-  std::map<int,int> panels;
+  std::map<int,int> panels_;
+};
+
+// Reorder/change order of panels in setup.
+// Parameter string example (change order of panels with index 1 and 3): Reorder:1|3,3|1
+class ReorderPixelMapper : public PixelMapper {
+public:
+
+  ReorderPixelMapper() {}
+
+  virtual const char *GetName() const { return "Reorder"; }
+
+  virtual bool SetParameters(int chain, int parallel, const char *param) {
+
+    chain_ = chain;
+    parallel_ = parallel;
+
+    if(param != NULL) {
+
+      char* param_str = strdup(param);
+      char* token1 = NULL; 
+      char* token2 = NULL; 
+      const char *param_delimiter_1 = ",";
+      const char *param_delimiter_2 = "|"; 
+      char* param_delimiter_1_ptr = NULL;
+      char* param_delimiter_2_ptr = NULL;
+      bool param_error = false;
+
+      size_t str_index = 0;
+      int i = 0;
+      int panel_index_from = 0;
+      int panel_index_to = 0;
+
+      const int panel_count = chain * parallel;
+
+      //parse prameter string into map with panel id as index and rotation as value
+      token1 = strtok_r(param_str, param_delimiter_1, &param_delimiter_1_ptr);
+      while(token1 != NULL) {
+        param_error = false;
+        token2 = strtok_r(token1, param_delimiter_2, &param_delimiter_2_ptr);
+
+        i=0;
+        while(token2 != NULL) {
+          //check that string is only number(s)
+          for(str_index=0;str_index < strlen(token2);str_index++) {
+            if(isdigit(token2[str_index]) == 0) {
+              fprintf(stderr, "%s: error in parameter string, found non-digit: %s\n",this->GetName(), token2);
+              param_error = true;
+              break;
+            }
+          }
+
+          if(param_error != false) {
+            break;
+          }
+
+          if( i++ % 2 == 0) {
+            panel_index_from = atoi(token2);
+            if(panel_index_from > (panel_count -1)) {
+              fprintf(stderr, "%s: error in parameter string, panel index is too high: %i (max: %i)\n",this->GetName(), panel_index_from,panel_count -1);
+              break;
+            }
+          }else{
+            panel_index_to = atoi(token2);
+            if(panel_index_to > (panel_count -1)) {
+              fprintf(stderr, "%s: error in parameter string, panel index is too high: %i (max: %i)\n",this->GetName(), panel_index_to,panel_count -1);
+              break;
+            }
+
+            panels_[panel_index_from] = panel_index_to;
+          }
+
+          token2 = strtok_r(NULL, param_delimiter_2,&param_delimiter_2_ptr);
+        }
+
+        token1 = strtok_r(NULL, param_delimiter_1,&param_delimiter_1_ptr);
+      }
+      free(param_str);
+  
+    }
+    return true;
+  }
+
+  virtual bool GetSizeMapping(int matrix_width, int matrix_height,
+                              int *visible_width, int *visible_height)
+     const{
+
+      *visible_width = matrix_width;
+      *visible_height = matrix_height;
+
+      //calculate size of one panel
+      panel_cols_ = matrix_width / chain_;
+      panel_rows_ = matrix_height / parallel_;
+
+      return true;
+  }
+
+  virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
+                                  int x, int y,
+                                  int *matrix_x, int *matrix_y) const {
+
+    //calculate on which panel index x/y is
+    const int panel_from_x_index = int(x / (panel_cols_)); //panel index on x-axis. 0 or 1 for chain=2
+    const int panel_from_y_index = int(y / (panel_rows_)); //panel index on y-axis. 0,1 or 2 for parallel=3
+    const int panel_from_index = (panel_from_y_index * chain_) + panel_from_x_index; //panel index in setup
+
+    int panel_to_x_index = 0;
+    int panel_to_y_index = 0;
+    int panel_to_index = 0;
+
+    int panel_x = 0;
+    int panel_y = 0;
+
+    //check if we should do any reordering for the current panel
+    if(panels_.count(panel_from_index) > 0) {
+
+      panel_to_index = panels_.at(panel_from_index);
+
+      panel_to_x_index = panel_to_index % (parallel_ -1); //panel index on x-axis.
+      panel_to_y_index = int(panel_to_index / (parallel_ -1)); //panel index on y-axis.
+
+      //convert from x,y on the matrix to x,y on the current panel
+      panel_x = (panel_from_x_index == 0) ? x : x % ((panel_from_x_index) * panel_cols_);
+      panel_y = (panel_from_y_index == 0) ? y : y % ((panel_from_y_index) * panel_rows_);
+
+      //calc x/y positions on the new panel
+      *matrix_x = (panel_to_x_index * panel_cols_) + panel_x;
+      *matrix_y = (panel_to_y_index * panel_rows_) + panel_y;
+
+    }else{
+      *matrix_x = x;
+      *matrix_y = y;
+    }
+
+  }
+
+private:
+  int chain_;
+  int parallel_;
+  mutable int panel_cols_;
+  mutable int panel_rows_;
+  std::map<int,int> panels_;
 };
 
 class RotatePixelMapper : public PixelMapper {
@@ -501,6 +640,7 @@ static MapperByName *CreateMapperMap() {
   // Register all the default PixelMappers here.
   RegisterPixelMapperInternal(result, new RowArrangementMapper());
   RegisterPixelMapperInternal(result, new RotatePanelPixelMapper());
+  RegisterPixelMapperInternal(result, new ReorderPixelMapper());
   RegisterPixelMapperInternal(result, new RotatePixelMapper());
   RegisterPixelMapperInternal(result, new UArrangementMapper());
   RegisterPixelMapperInternal(result, new VerticalMapper());
