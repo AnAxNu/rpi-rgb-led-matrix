@@ -82,6 +82,82 @@ private:
   int parallel_;
 };
 
+// Rotate some of the panels, that has been configured for the Adafruit PixelDust cube,
+// so they are normally rotated according to the way that rpi-rgb-led-matrix normally orientate panels.
+class CubeArrangementMapper : public PixelMapper {
+public:
+
+  CubeArrangementMapper() {}
+
+  virtual const char *GetName() const { return "Cube-mapper"; }
+
+  virtual bool SetParameters(int chain, int parallel, const char *param) {
+
+    if(chain * parallel != 6) {
+      fprintf(stderr, "Cube-mapper: must have 6 panels (led-parallel * led-chain) in a cube.\n");
+      return false;
+    }
+
+    chain_ = chain;
+    parallel_ = parallel;    
+
+    return true;
+  }
+
+  virtual bool GetSizeMapping(int matrix_width, int matrix_height,
+                              int *visible_width, int *visible_height)
+     const{
+
+      *visible_width = matrix_width;
+      *visible_height = matrix_height;
+
+      //calculate size of one panel
+      panel_cols_ = matrix_width / chain_;
+      panel_rows_ = matrix_height / parallel_;
+
+    return true;
+  }
+
+  virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
+                                  int x, int y,
+                                  int *matrix_x, int *matrix_y) const {
+
+    //calculate on which panel we are
+    const int panel_x_nr = int(x / (panel_cols_)); //panel count on x-axis. 0 or 1 for chain=2
+    const int panel_y_nr = int(y / (panel_rows_)); //panel count on y-axis. 0,1 or 2 for parallel=3
+    const int panel_nr = (panel_y_nr * chain_) + panel_x_nr;
+
+    //convert from x,y on the matrix to x,y on the panel
+    int panel_x = (panel_x_nr == 0) ? x : x % ((panel_x_nr) * panel_cols_);
+    int panel_y = (panel_y_nr == 0) ? y : y % ((panel_y_nr) * panel_rows_);
+
+    //rotate the panels that need it
+    if(panel_nr == 2 || panel_nr == 4) {
+      //dont have to do anything
+      *matrix_x = x;
+      *matrix_y = y;
+    }else if(panel_nr == 0 || panel_nr == 3 || panel_nr == 5) {
+      //rotate 90 degrees clockwise
+      *matrix_x = (panel_x_nr * panel_cols_) + (panel_cols_ - panel_y - 1);
+      *matrix_y = (panel_y_nr * panel_rows_) + panel_x;
+    }else if(panel_nr == 1) {
+      //rotate 90 degrees counter-clockwise (same as 270 degrees clockwise)
+      *matrix_x = (panel_x_nr * panel_cols_) + panel_y;
+      *matrix_y = (panel_y_nr * panel_rows_) + (panel_rows_ - panel_x - 1);
+    }else{
+      *matrix_x = x;
+      *matrix_y = y;
+    }
+
+  }
+
+private:
+  int chain_;
+  int parallel_;
+  mutable int panel_cols_;
+  mutable int panel_rows_;
+};
+
 class RotatePixelMapper : public PixelMapper {
 public:
   RotatePixelMapper() : angle_(0) {}
@@ -350,6 +426,7 @@ static MapperByName *CreateMapperMap() {
 
   // Register all the default PixelMappers here.
   RegisterPixelMapperInternal(result, new RowArrangementMapper());
+  RegisterPixelMapperInternal(result, new CubeArrangementMapper());
   RegisterPixelMapperInternal(result, new RotatePixelMapper());
   RegisterPixelMapperInternal(result, new UArrangementMapper());
   RegisterPixelMapperInternal(result, new VerticalMapper());
