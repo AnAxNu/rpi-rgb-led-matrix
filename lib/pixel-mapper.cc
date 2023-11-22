@@ -22,6 +22,8 @@
 
 #include <map>
 
+#include <unistd.h>               // for linux 
+
 namespace rgb_matrix {
 namespace {
 
@@ -82,25 +84,82 @@ private:
   int parallel_;
 };
 
-// Rotate some of the panels, that has been configured for the Adafruit PixelDust cube,
-// so they are normally rotated according to the way that rpi-rgb-led-matrix normally orientate panels.
+// Rotate one or more panels by 0,90,180 or 270 degrees. 
+// Parameter string example (rotate panel zero 90 degrees and panel two 180 degrees): Rotate-panel:0|90,2|180
 class CubeArrangementMapper : public PixelMapper {
 public:
 
   CubeArrangementMapper() {}
 
-  virtual const char *GetName() const { return "Cube-mapper"; }
+  virtual const char *GetName() const { return "Rotate-panel"; }
 
   virtual bool SetParameters(int chain, int parallel, const char *param) {
 
-    if(chain * parallel != 6) {
-      fprintf(stderr, "Cube-mapper: must have 6 panels (led-parallel * led-chain) in a cube.\n");
-      return false;
-    }
-
     chain_ = chain;
-    parallel_ = parallel;    
+    parallel_ = parallel;
 
+    if(param != NULL) {
+
+      char* param_str = strdup(param);
+      char* token1 = NULL; 
+      char* token2 = NULL; 
+      const char *param_delimiter_1 = ",";
+      const char *param_delimiter_2 = "|"; 
+      char* param_delimiter_1_ptr = NULL;
+      char* param_delimiter_2_ptr = NULL;
+      bool param_error = false;
+
+      size_t str_index = 0;
+      int i = 0;
+      int panel_index = 0;
+      int panel_angle = 0;
+
+      const int panel_count = chain * parallel;
+
+      //parse prameter string into map with panel id as index and rotation as value
+      token1 = strtok_r(param_str, param_delimiter_1, &param_delimiter_1_ptr);
+      while(token1 != NULL) {
+        param_error = false;
+        token2 = strtok_r(token1, param_delimiter_2, &param_delimiter_2_ptr);
+
+        i=0;
+        while(token2 != NULL) {
+          //check that string is only number(s)
+          for(str_index=0;str_index < strlen(token2);str_index++) {
+            if(isdigit(token2[str_index]) == 0) {
+              fprintf(stderr, "%s: error in parameter string, found non-digit: %s\n",this->GetName(), token2);
+              param_error = true;
+              break;
+            }
+          }
+
+          if(param_error != false) {
+            break;
+          }
+
+          if( i++ % 2 == 0) {
+            panel_index = atoi(token2);
+            if(panel_index > (panel_count -1)) {
+              fprintf(stderr, "%s: error in parameter string, panel index is too high: %i (max: %i)\n",this->GetName(), panel_index,panel_count -1);
+              break;
+            }
+          }else{
+            panel_angle = atoi(token2);
+            if ( panel_angle % 90 != 0) {
+              fprintf(stderr, "%s: invalid parameter value for rotation: %i\n",this->GetName(), panel_angle);
+            }else{
+              panels[panel_index] = panel_angle;
+            }
+          }
+
+          token2 = strtok_r(NULL, param_delimiter_2,&param_delimiter_2_ptr);
+        }
+
+        token1 = strtok_r(NULL, param_delimiter_1,&param_delimiter_1_ptr);
+      }
+      free(param_str);
+  
+    }
     return true;
   }
 
@@ -115,35 +174,49 @@ public:
       panel_cols_ = matrix_width / chain_;
       panel_rows_ = matrix_height / parallel_;
 
-    return true;
+      return true;
   }
 
   virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
                                   int x, int y,
                                   int *matrix_x, int *matrix_y) const {
 
+    int angle = 0;
+
     //calculate on which panel we are
     const int panel_x_nr = int(x / (panel_cols_)); //panel count on x-axis. 0 or 1 for chain=2
     const int panel_y_nr = int(y / (panel_rows_)); //panel count on y-axis. 0,1 or 2 for parallel=3
     const int panel_nr = (panel_y_nr * chain_) + panel_x_nr;
 
-    //convert from x,y on the matrix to x,y on the panel
-    int panel_x = (panel_x_nr == 0) ? x : x % ((panel_x_nr) * panel_cols_);
-    int panel_y = (panel_y_nr == 0) ? y : y % ((panel_y_nr) * panel_rows_);
+    int panel_x = 0;
+    int panel_y = 0;
 
-    //rotate the panels that need it
-    if(panel_nr == 2 || panel_nr == 4) {
-      //dont have to do anything
-      *matrix_x = x;
-      *matrix_y = y;
-    }else if(panel_nr == 0 || panel_nr == 3 || panel_nr == 5) {
-      //rotate 90 degrees clockwise
-      *matrix_x = (panel_x_nr * panel_cols_) + (panel_cols_ - panel_y - 1);
-      *matrix_y = (panel_y_nr * panel_rows_) + panel_x;
-    }else if(panel_nr == 1) {
-      //rotate 90 degrees counter-clockwise (same as 270 degrees clockwise)
-      *matrix_x = (panel_x_nr * panel_cols_) + panel_y;
-      *matrix_y = (panel_y_nr * panel_rows_) + (panel_rows_ - panel_x - 1);
+    //check if we should do any rotation for the current panel
+    if(panels.count(panel_nr) > 0) {
+      angle = panels.at(panel_nr);
+
+      //convert from x,y on the matrix to x,y on the panel
+      panel_x = (panel_x_nr == 0) ? x : x % ((panel_x_nr) * panel_cols_);
+      panel_y = (panel_y_nr == 0) ? y : y % ((panel_y_nr) * panel_rows_);
+
+      switch (angle) {
+      case 0:
+        *matrix_x = x;
+        *matrix_y = y;
+        break;
+      case 90:
+        *matrix_x = (panel_x_nr * panel_cols_) + (panel_cols_ - panel_y - 1);
+        *matrix_y = (panel_y_nr * panel_rows_) + panel_x;
+        break;
+      case 180:
+        *matrix_x = (panel_x_nr * panel_cols_) + (panel_rows_ - panel_x - 1);
+        *matrix_y = (panel_y_nr * panel_rows_) + (panel_cols_ - panel_y - 1);
+        break;
+      case 270:
+        *matrix_x = (panel_x_nr * panel_cols_) + panel_y;
+        *matrix_y = (panel_y_nr * panel_rows_) + (panel_rows_ - panel_x - 1);
+        break;
+      }
     }else{
       *matrix_x = x;
       *matrix_y = y;
@@ -156,6 +229,7 @@ private:
   int parallel_;
   mutable int panel_cols_;
   mutable int panel_rows_;
+  std::map<int,int> panels;
 };
 
 class RotatePixelMapper : public PixelMapper {
