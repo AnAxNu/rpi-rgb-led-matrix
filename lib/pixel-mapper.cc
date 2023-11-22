@@ -86,10 +86,10 @@ private:
 
 // Rotate one or more panels by 0,90,180 or 270 degrees. 
 // Parameter string example (rotate panel zero 90 degrees and panel two 180 degrees): Rotate-panel:0|90,2|180
-class CubeArrangementMapper : public PixelMapper {
+class RotatePanelPixelMapper : public PixelMapper {
 public:
 
-  CubeArrangementMapper() {}
+  RotatePanelPixelMapper() {}
 
   virtual const char *GetName() const { return "Rotate-panel"; }
 
@@ -500,7 +500,7 @@ static MapperByName *CreateMapperMap() {
 
   // Register all the default PixelMappers here.
   RegisterPixelMapperInternal(result, new RowArrangementMapper());
-  RegisterPixelMapperInternal(result, new CubeArrangementMapper());
+  RegisterPixelMapperInternal(result, new RotatePanelPixelMapper());
   RegisterPixelMapperInternal(result, new RotatePixelMapper());
   RegisterPixelMapperInternal(result, new UArrangementMapper());
   RegisterPixelMapperInternal(result, new VerticalMapper());
