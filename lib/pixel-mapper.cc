@@ -168,16 +168,16 @@ public:
       *visible_width = matrix_width;
       *visible_height = matrix_height;
 
-      //calculate size of one panel
-      panel_cols_ = matrix_width / chain_;
-      panel_rows_ = matrix_height / parallel_;
-
       return true;
   }
 
   virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
                                   int x, int y,
                                   int *matrix_x, int *matrix_y) const {
+
+    //calculate size of one panel
+    static const int panel_cols_ = matrix_width / chain_;
+    static const int panel_rows_ = matrix_height / parallel_;
 
     int angle = 0;
 
@@ -225,8 +225,6 @@ public:
 private:
   int chain_;
   int parallel_;
-  mutable int panel_cols_;
-  mutable int panel_rows_;
   std::map<int,int> panels_;
 };
 
@@ -317,16 +315,16 @@ public:
       *visible_width = matrix_width;
       *visible_height = matrix_height;
 
-      //calculate size of one panel
-      panel_cols_ = matrix_width / chain_;
-      panel_rows_ = matrix_height / parallel_;
-
       return true;
   }
 
   virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
                                   int x, int y,
                                   int *matrix_x, int *matrix_y) const {
+    
+    //calculate size of one panel
+    static const int panel_cols_ = matrix_width / chain_;
+    static const int panel_rows_ = matrix_height / parallel_;
 
     //calculate on which panel index x/y is
     const int panel_from_x_index = int(x / (panel_cols_)); //panel index on x-axis. 0 or 1 for chain=2
@@ -366,8 +364,6 @@ public:
 private:
   int chain_;
   int parallel_;
-  mutable int panel_cols_;
-  mutable int panel_rows_;
   std::map<int,int> panels_;
 };
 
