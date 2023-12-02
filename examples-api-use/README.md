@@ -421,6 +421,14 @@ This is useful if you are using a hat/adapter with multiple parallel chains but 
   ./demo --led-pixel-mapper="Row-mapper"
 ```
 
+A parameter can be used that is either H, for horizontal, or V for vertical.
+This can be used to get the text-scroller to scroll around the panels sides of a cube.
+The parameter can be set to only use the horizontal panel-sides (parameter:H) of the cube
+(not top/bottom panel) or the only use vertical (parameter:V) panel sides.
+```
+  ./demo --led-pixel-mapper="Row-mapper:H"
+```
+
 #### Combining Mappers
 
 You can chain multiple mappers in the configuration, by separating them

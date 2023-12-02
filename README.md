@@ -292,14 +292,14 @@ necessary to use `--led-row-addr-type=2`.
 
 Optional params after a colon e.g. "U-mapper;Rotate:90"
 
-Available    | Parameter after colon                      | Example
--------------|--------------------------------------------|----------
-Mirror       | `H` or `V` for horizontal/vertical mirror. | `Mirror:H`
-Rotate       | Degrees.                                   | `Rotate:90`
-Rotate-panel | -                                          | `Rotate-panel:0\|90,1\|270`
-U-mapper     | -                                          | -
-Row-mapper   | -                                          | -
-Reorder      | -                                          | `Reorder:1\|3,3\|1`
+Available    | Parameter after colon                              | Example
+-------------|--------------------------------------------        |----------
+Mirror       | `H` or `V` for horizontal/vertical mirror.         | `Mirror:H`
+Rotate       | Degrees.                                           | `Rotate:90`
+Rotate-panel | Panel index and degrees to rotate a panel          | `Rotate-panel:0\|90,1\|270`
+U-mapper     | -                                                  | -
+Row-mapper   | `H` or `V` for horizontal/vertical usage with cube | `Row-mapper:H`
+Reorder      | Source panel index and destination panel index     | `Reorder:1\|3,3\|1`
 
 Mapping the logical layout of your boards to your physical arrangement. See
 more in [Remapping coordinates](./examples-api-use#remapping-coordinates).
