@@ -33,6 +33,13 @@ text-scroller: text-scroller.o $(RGB_LIBRARY)
 led-image-viewer: led-image-viewer.o $(RGB_LIBRARY)
 	$(CXX) $(CXXFLAGS) led-image-viewer.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS) $(MAGICK_LDFLAGS)
 
+# led-image-viewer-cube: led-image-viewer-cube.cpp $(RGB_LIBRARY)
+#	$(CXX) -Wno-psabi -Wall -s -I$(RGB_INCDIR) $(MAGICK_CXXFLAGS) $< $(LDFLAGS) $(MAGICK_LDFLAGS) $(RGB_LIBRARY) -o $@
+#	strip $@
+
+led-image-viewer-cube: led-image-viewer-cube.o $(RGB_LIBRARY)
+	$(CXX) $(CXXFLAGS) led-image-viewer-cube.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS) $(MAGICK_LDFLAGS)
+
 video-viewer: video-viewer.o $(RGB_LIBRARY)
 	$(CXX) $(CXXFLAGS) video-viewer.o -o $@ $(LDFLAGS) $(RGB_LDFLAGS) $(AV_LDFLAGS)
 
@@ -40,6 +47,9 @@ video-viewer: video-viewer.o $(RGB_LIBRARY)
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) -c -o $@ $<
 
 led-image-viewer.o : led-image-viewer.cc
+	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) $(MAGICK_CXXFLAGS) -c -o $@ $<
+
+led-image-viewer-cube.o : led-image-viewer-cube.cc
 	$(CXX) -I$(RGB_INCDIR) $(CXXFLAGS) $(MAGICK_CXXFLAGS) -c -o $@ $<
 
 clean:
