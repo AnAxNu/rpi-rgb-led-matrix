@@ -107,8 +107,6 @@ public:
           break;
       }
 
-      fprintf(stderr, "%s - Size (w,h): %i,%i \n",this->GetName(),*visible_width,*visible_height);
-
       return true;
     }
 
