@@ -37,20 +37,52 @@ namespace {
 //
 // This is useful if you are using a hat/adapter with multiple parallel chains
 // but trying to run code made for a single chain.
+//
+// Parameters can be used to get the text-scroller to scroll around the cube sides.
+// The parameter can be set to only use the horizontal panel-sides (parameter:H) of the cube
+// (not top/bottom panel) or the only use vertical (parameter:V) panel-sides.
+// Parameter string should be either empty (not used), H for horizontal, or V for vertical.
+// Parameter string example: Row-mapper:H
 class RowArrangementMapper : public PixelMapper {
 public:
+  enum Mode { normal, band_horizontal, band_vertical };
+
   RowArrangementMapper() : parallel_(1) {}
 
   virtual const char *GetName() const { return "Row-mapper"; }
 
   virtual bool SetParameters(int chain, int parallel, const char *param) {
     if (parallel < 2) {  // technically, a chain of 1 would work, but somewhat pointless
-      fprintf(stderr, "Row-mapper: need at least --led-parallel=2 for usefullness\n");
+      fprintf(stderr, "%s: need at least --led-parallel=2 for usefullness\n",this->GetName());
       return false;
+    }
+
+    Mode mode = normal;
+
+    if(param == NULL || strlen(param) == 0) {
+      mode = normal;
+    }else if(strlen(param) != 1) {
+      fprintf(stderr, "%s parameter should be a single character:'V' or 'H'\n",this->GetName());
+    }else{
+      switch (*param) {
+        case 'V':
+        case 'v':
+        mode = band_vertical;
+        break;
+      case 'H':
+      case 'h':
+        mode = band_horizontal;
+        break;
+      default:
+        fprintf(stderr, "%s parameter should be either 'V' or 'H'\n",this->GetName());
+        return false;
+      }
     }
 
     chain_ = chain;
     parallel_ = parallel;
+    mode_ = mode;
+
     return true;
   }
 
@@ -58,28 +90,57 @@ public:
                               int *visible_width, int *visible_height)
     const {
 
-    *visible_height = matrix_height / parallel_;
-    *visible_width = matrix_width * parallel_;
+      const int panel_width = matrix_width / chain_;
 
-    return true;
-  }
+      switch (mode_) {
+        case normal:
+          *visible_height = matrix_height / parallel_;
+          *visible_width = matrix_width * parallel_;
+          break;
+        case band_vertical:
+          *visible_height = matrix_height / parallel_;
+          *visible_width = (matrix_width * parallel_) - (panel_width * 2);
+          break;
+        case band_horizontal:
+          *visible_height = matrix_height / parallel_;
+          *visible_width = (matrix_width * parallel_) - (panel_width * 2);
+          break;
+      }
+
+      fprintf(stderr, "%s - Size (w,h): %i,%i \n",this->GetName(),*visible_width,*visible_height);
+
+      return true;
+    }
 
   virtual void MapVisibleToMatrix(int matrix_width, int matrix_height,
                                   int x, int y,
                                   int *matrix_x, int *matrix_y) const {
 
     const int panel_height = matrix_height / parallel_;
-
+    const int panel_width = matrix_width / chain_;
     const int y_diff = int (x / matrix_width); //round down
 
-    *matrix_x = x % matrix_width;
-    *matrix_y = (y_diff * panel_height) + y;
+    switch (mode_) {
+      case normal:
+        *matrix_x = x % matrix_width;
+        *matrix_y = (y_diff * panel_height) + y;
+        break;
+      case band_vertical:
+        *matrix_x = (x + panel_width) % matrix_width;
+        *matrix_y = (int ((x + panel_width) / matrix_width) * panel_height) + y;
+        break;
+      case band_horizontal:
+        *matrix_x = (x) % matrix_width;
+        *matrix_y = (y_diff * panel_height) + y;
+        break;
+    }
 
   }
 
 private:
   int chain_;
   int parallel_;
+  Mode mode_;
 };
 
 // Rotate one or more panels by 0,90,180 or 270 degrees. 
